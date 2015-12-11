@@ -5,9 +5,11 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"go/format"
 	"io"
 	"io/ioutil"
 	"log"
@@ -67,6 +69,17 @@ func generateStub(filename, pkg, tag string) error {
 	if filename == "" {
 		return errors.New("empty filename")
 	}
+	buf := new(bytes.Buffer)
+	writer := ErrWriter(buf)
+	writeHeader(writer, pkg, tag)
+	writer.Write([]byte(stub))
+	if err := writer.Err(); err != nil {
+		return err
+	}
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		return err
+	}
 	outfile, err := ioutil.TempFile("", "assetfs-stub-tmp.")
 	if err != nil {
 		return err
@@ -74,10 +87,7 @@ func generateStub(filename, pkg, tag string) error {
 	defer os.Remove(outfile.Name())
 	defer outfile.Close()
 
-	writer := ErrWriter(outfile)
-	writeHeader(writer, pkg, tag)
-	writer.Write([]byte(stub))
-	if err := writer.Err(); err != nil {
+	if _, err := outfile.Write(formatted); err != nil {
 		return err
 	}
 	if err := outfile.Close(); err != nil {
@@ -93,14 +103,8 @@ func generateMain(filename, pkg, tag string, dirs []string) error {
 	if filename == "" {
 		return errors.New("empty filename")
 	}
-	outfile, err := ioutil.TempFile("", "assetfs-main-tmp.")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(outfile.Name())
-	defer outfile.Close()
-
-	writer := ErrWriter(outfile)
+	buf := new(bytes.Buffer)
+	writer := ErrWriter(buf)
 	writeHeader(writer, pkg, tag)
 	writer.Write([]byte(head))
 	for _, dir := range dirs {
@@ -111,6 +115,19 @@ func generateMain(filename, pkg, tag string, dirs []string) error {
 	}
 	writeTail(writer)
 	if err := writer.Err(); err != nil {
+		return err
+	}
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		return err
+	}
+	outfile, err := ioutil.TempFile("", "assetfs-main-tmp.")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(outfile.Name())
+	defer outfile.Close()
+	if _, err := outfile.Write(formatted); err != nil {
 		return err
 	}
 	if err := outfile.Close(); err != nil {
