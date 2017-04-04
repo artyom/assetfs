@@ -40,6 +40,3 @@ included files are stored as byte slices, they affect both binary size and
 runtime memory consumption, so you should avoid including large files.
 Currently the only artificial limit built in is for a single file size (10
 MiB).
-
-
-License: MIT
